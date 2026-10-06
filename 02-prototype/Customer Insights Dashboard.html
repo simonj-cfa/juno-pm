@@ -1,0 +1,569 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Customer Insights Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky filter bar, "what changed today" panel, then themes (left) beside ranked feature opportunities (right). */
+:root{
+  --bg:#f3f4f6; --surface:#ffffff; --surface-2:#f8f9fb; --ink:#1b222c; --muted:#5b6574; --line:#dfe3e9; --line-strong:#c3cad4;
+  --accent:#2c56c9; --accent-soft:#e6ecfb; --accent-ink:#ffffff;
+  --new:#0b7a66; --new-soft:#dcf3ee; --warn:#a6500c; --warn-soft:#fbe9d8;
+  --t-int:#6a45c0; --t-srv:#0c7a86; --t-tkt:#bd5316; --t-mtg:#51647d;
+  --shadow:0 8px 30px rgba(20,28,40,.18);
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161c; --surface:#1a2029; --surface-2:#202733; --ink:#e7ebf1; --muted:#9aa5b5; --line:#2d3643; --line-strong:#434f61;
+  --accent:#7d9cf2; --accent-soft:#222f52; --accent-ink:#0f1522;
+  --new:#4fd1b5; --new-soft:#143a33; --warn:#f0a35e; --warn-soft:#3d2a17;
+  --t-int:#a98bf0; --t-srv:#4cc3d0; --t-tkt:#f0915a; --t-mtg:#97a9c3; --shadow:0 8px 30px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161c; --surface:#1a2029; --surface-2:#202733; --ink:#e7ebf1; --muted:#9aa5b5; --line:#2d3643; --line-strong:#434f61;
+  --accent:#7d9cf2; --accent-soft:#222f52; --accent-ink:#0f1522;
+  --new:#4fd1b5; --new-soft:#143a33; --warn:#f0a35e; --warn-soft:#3d2a17;
+  --t-int:#a98bf0; --t-srv:#4cc3d0; --t-tkt:#f0915a; --t-mtg:#97a9c3; --shadow:0 8px 30px rgba(0,0,0,.5); color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;padding-inline:16px;padding-block:0 48px}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1320px;margin-inline:auto}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 24px;padding-block:20px 14px}
+.top h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
+.top .sub{color:var(--muted);margin:2px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted);font-size:12.5px}
+.badge{border:1px dashed var(--line-strong);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+
+/* filters */
+.filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);padding-block:10px;border-block:1px solid var(--line);display:flex;flex-wrap:wrap;gap:10px 22px}
+.fg{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fg>span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);overflow:hidden}
+.seg button{border:0;background:none;padding:6px 11px;border-right:1px solid var(--line);color:var(--muted)}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--surface-2);color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:500}
+
+/* summary */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-block:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.stat b{display:block;font-size:24px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:12.5px}
+
+h2{font-size:15px;font-weight:600;margin:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.panel-h{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)}
+.panel-h small{color:var(--muted);font-size:12.5px}
+
+/* today */
+.today{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);margin-bottom:20px}
+.today>div{padding:14px 16px;min-width:0}
+.today>div+div{border-left:1px solid var(--line)}
+.today h3{margin:0 0 8px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.chg{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.chg li button{width:100%;text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:8px 10px;display:flex;gap:10px;align-items:flex-start}
+.chg li button:hover{border-color:var(--accent)}
+.chg .k{flex:none;margin-top:1px}
+.chg .tx{min-width:0}
+.chg .tx small{display:block;color:var(--muted);font-size:12.5px}
+.tq{display:flex;flex-direction:column;gap:10px}
+.tq .q{font-size:13.5px}
+.mixrow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+
+/* pills & chips */
+.pill{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:500;white-space:nowrap}
+.pill.new{background:var(--new-soft);color:var(--new)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.strong{background:var(--accent);color:var(--accent-ink)}
+.pill.mod{background:var(--accent-soft);color:var(--accent)}
+.pill.early{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.tc{display:inline-flex;align-items:center;gap:5px;font-size:12px;border:1px solid var(--line);border-radius:4px;padding:1px 6px;white-space:nowrap;background:var(--surface)}
+.tc i{width:8px;height:8px;border-radius:2px;background:currentColor;display:inline-block}
+.tc.int{color:var(--t-int)}.tc.srv{color:var(--t-srv)}.tc.tkt{color:var(--t-tkt)}.tc.mtg{color:var(--t-mtg)}
+.tc span{color:var(--ink)}
+.tc.zero{opacity:.4}
+
+/* main */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:20px;align-items:start}
+.sechead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.sort{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+.sort .seg button{padding:4px 9px;font-size:12.5px}
+.themes{display:flex;flex-direction:column;gap:16px}
+.theme-h{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.theme-h .row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline}
+.theme-h p{margin:0;color:var(--muted);font-size:13px}
+.bar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--line);max-width:340px}
+.bar i{display:block}
+.bar .int{background:var(--t-int)}.bar .srv{background:var(--t-srv)}.bar .tkt{background:var(--t-tkt)}.bar .mtg{background:var(--t-mtg)}
+.prob{border-top:1px solid var(--line)}
+.prob:first-of-type{border-top:0}
+.prob-head{width:100%;display:grid;grid-template-columns:56px minmax(0,1fr) auto 18px;gap:6px 14px;align-items:center;padding:12px 16px;border:0;background:none;text-align:left}
+.prob-head:hover{background:var(--surface-2)}
+.sig{display:flex;flex-direction:column;align-items:center;line-height:1}
+.sig b{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.sig small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:3px}
+.ptitle{font-weight:500;font-size:14.5px}
+.ptags{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;align-items:center}
+.tri{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:210px}
+.chev{transition:transform .15s;color:var(--muted)}
+.prob-head[aria-expanded="true"] .chev{transform:rotate(90deg)}
+.spark{display:block}
+.spark rect{fill:var(--line-strong)}
+.spark rect.cur{fill:var(--accent)}
+.prob-body{padding:2px 16px 16px 86px;display:flex;flex-direction:column;gap:12px}
+.stmt{margin:0;max-width:70ch}
+.lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:block}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.feat{border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:2px 8px;font-size:12.5px}
+.quotes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.quote{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}
+.quote blockquote{margin:0;max-width:75ch}
+.quote blockquote::before{content:"\201C"}
+.quote blockquote::after{content:"\201D"}
+.qf{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;color:var(--muted)}
+.qf .src{font-family:var(--mono);font-size:12px;color:var(--ink)}
+.btn{border:1px solid var(--line-strong);background:var(--surface);border-radius:5px;padding:3px 10px;font-size:12.5px}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.pri:hover{color:var(--accent-ink);filter:brightness(1.08)}
+.qf .btn{margin-left:auto}
+.ok{color:var(--new);font-weight:500}
+.more{align-self:flex-start;border:0;background:none;color:var(--accent);padding:0;text-decoration:underline}
+
+/* features */
+.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 100px)}
+.fl{list-style:none;margin:0;padding:4px 0}
+.fl li button{width:100%;text-align:left;border:0;background:none;padding:10px 16px;display:flex;flex-direction:column;gap:5px}
+.fl li button:hover{background:var(--surface-2)}
+.fl .r1{display:flex;justify-content:space-between;gap:10px;font-weight:500}
+.fl .r1 span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.fl .meter{height:5px;background:var(--line);border-radius:3px;overflow:hidden}
+.fl .meter i{display:block;height:100%;background:var(--accent)}
+.fl small{color:var(--muted);font-size:12px}
+.empty{padding:36px 16px;text-align:center;color:var(--muted)}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.45);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--surface);z-index:50;box-shadow:var(--shadow);display:flex;flex-direction:column;border-left:1px solid var(--line)}
+.dh{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-top:calc(16px + env(safe-area-inset-top,0px))}
+.dh h2{font-size:16px;margin-top:6px}
+.db{padding:16px 18px;overflow:auto;display:flex;flex-direction:column;gap:16px;flex:1}
+.dl{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 12px;margin:0}
+.dl dt{color:var(--muted);font-size:12.5px}
+.dl dd{margin:0}
+.ctx{border:1px solid var(--line);border-radius:6px;background:var(--surface-2);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.ctx .p{color:var(--muted);font-size:13px}
+.ctx mark{background:var(--accent-soft);color:var(--ink);padding:1px 2px;border-bottom:2px solid var(--accent)}
+.df{padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px}
+.note{color:var(--muted);font-size:12.5px;margin:0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:6px;z-index:60;font-size:13px}
+
+@media (max-width:1020px){.main{grid-template-columns:minmax(0,1fr)}.side{position:static}}
+@media (max-width:760px){
+  .today{grid-template-columns:minmax(0,1fr)}.today>div+div{border-left:0;border-top:1px solid var(--line)}
+  .prob-head{grid-template-columns:44px minmax(0,1fr) 18px}
+  .prob-head .tri{grid-column:2/4;justify-content:flex-start;max-width:none}
+  .prob-body{padding-left:16px}
+  .filters{position:static}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Customer Insights</h1>
+      <p class="sub" id="dateline"></p>
+    </div>
+    <div class="meta">
+      <span class="badge">PROTOTYPE · MOCK DATA</span>
+      <span>Last synced 07:30 · 4 source types</span>
+    </div>
+  </header>
+
+  <section class="filters" aria-label="Filters">
+    <div class="fg"><span>Feedback date</span><div class="seg" role="group" data-f="range" id="f-range"></div></div>
+    <div class="fg"><span>Project</span><div class="seg" role="group" data-f="proj" id="f-proj"></div></div>
+    <div class="fg"><span>Customer persona</span><div class="seg" role="group" data-f="pers" id="f-pers"></div></div>
+  </section>
+
+  <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <section class="panel today" id="today" aria-label="Today's update"></section>
+
+  <div class="main">
+    <section>
+      <div class="sechead">
+        <h2>Themes and customer problems</h2>
+        <div class="sort"><span>Rank by</span><div class="seg" role="group" id="f-sort"></div></div>
+      </div>
+      <div class="themes" id="themes"></div>
+    </section>
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-h"><h2>Feature opportunities</h2><small>by linked evidence</small></div>
+        <ul class="fl" id="features"></ul>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="overlay"></div>
+<div id="toast-host"></div>
+
+<script>
+/* ---------- mock data ---------- */
+const TODAY = new Date(2026, 9, 1);
+const TYPES = {
+  interview:{label:'Interview',cls:'int'}, survey:{label:'Survey',cls:'srv'},
+  ticket:{label:'Support ticket',cls:'tkt'}, meeting:{label:'Internal meeting',cls:'mtg'}
+};
+const PROJ = {PY:'Python simulation', PW:'Private Wealth simulation'};
+const PERS = {CH:'CFA charterholder', LR:'CFA learner', IN:'Internal'};
+
+const THEMES = [
+  {id:'T1', name:'Getting started and technical reliability', desc:'Barriers that stop customers before or during a simulation.'},
+  {id:'T2', name:'Learning feedback and guidance', desc:'Customers finish an activity without knowing how they did or why.'},
+  {id:'T3', name:'Real-world relevance', desc:'Scenarios and data that do not match how customers actually work.'},
+  {id:'T4', name:'Credit and reporting', desc:'Recognition for the time customers spend, and visibility for the teams who run the programs.'}
+];
+const FEATURES = {
+  F1:'Pre-configured browser notebook', F2:'Environment health check', F3:'Inline hints and error explanations',
+  F4:'Post-attempt worked solution', F5:'Real-world messy datasets', F6:'Role-based exercise tracks',
+  F7:'Dynamic client personas', F8:'Multi-meeting client relationships', F9:'Jurisdiction selector',
+  F10:'Debrief scorecard with rubric', F11:'Autosave and resume', F12:'CPD hours certificate export',
+  F13:'Lightweight mode for slow networks', F14:'Responsive tablet layout', F15:'Cohort analytics for content teams',
+  F16:'Accessibility audit and keyboard navigation'
+};
+const PROBLEMS = [
+  {id:'P1', theme:'T1', title:'Python setup fails or takes longer than the lesson', features:['F1','F2'],
+   stmt:'Learners and charterholders cannot get the Python environment running (version conflicts, locked-down work laptops, outdated install steps), so many never reach the first exercise.'},
+  {id:'P7', theme:'T1', title:'Work is lost when a session times out or refreshes', features:['F11'],
+   stmt:'Sessions expire after idle time and nothing is saved until submission, so customers lose long stretches of work with no warning and cannot do the activity in short windows.'},
+  {id:'P9', theme:'T1', title:'Slow loading and a broken tablet or phone experience', features:['F13','F14'],
+   stmt:'Scenarios take a long time to load on slower connections, and the layout breaks on tablets and phones, where a large share of sessions start.'},
+  {id:'P11', theme:'T1', title:'Screen-reader and keyboard users are blocked', features:['F16'],
+   stmt:'Customers using assistive technology cannot complete key steps in the new simulation shell. This problem first appeared in the last two days.'},
+  {id:'P2', theme:'T2', title:'Pass/fail results do not explain what went wrong', features:['F3','F4'],
+   stmt:'The Python autograder returns "Incorrect" without saying whether the logic, rounding or data handling was at fault, so learners stall and instructors cannot coach.'},
+  {id:'P6', theme:'T2', title:'No debrief on the quality of advice given', features:['F10'],
+   stmt:'After the Private Wealth client conversation the simulation simply ends. Customers want to know whether their recommendation was suitable and how an examiner would mark it.'},
+  {id:'P3', theme:'T3', title:'Python exercises feel like toy problems, not analyst work', features:['F5','F6'],
+   stmt:'Exercises use clean textbook data. Customers and employers want realistic, messy portfolio data and workflows such as rebalancing and attribution.'},
+  {id:'P4', theme:'T3', title:'Simulated clients feel scripted and unrealistic', features:['F7','F8'],
+   stmt:'Clients answer every question directly. Customers notice the decision tree and start gaming it, instead of practising trust-building and difficult conversations.'},
+  {id:'P5', theme:'T3', title:'Cases assume US rules and terminology', features:['F9'],
+   stmt:'Tax, retirement and estate scenarios are US-centric, which does not fit charterholders advising in the UK, Singapore and other markets.'},
+  {id:'P8', theme:'T4', title:'No certificate or CPD hours for completed simulations', features:['F12'],
+   stmt:'Charterholders cannot log or evidence time spent for regulator-required CPD, which makes the simulations hard to justify.'},
+  {id:'P10', theme:'T4', title:'Internal teams cannot see where learners struggle', features:['F15'],
+   stmt:'Content and support teams assemble exports from several tools to see completion and failure patterns by cohort and exercise.'}
+];
+
+/* [problem, type, daysAgo, project, persona, source, location, who, prompt, quote] */
+const RAW = [
+ // P1 Python setup
+ ['P1','ticket',0,'PY','LR','Zendesk ZD-48213','Comment 1','Learner','Subject: Starter notebook won’t run','I’ve spent two evenings trying to get the starter notebook to run. First a pandas version conflict, then a kernel that won’t start. I haven’t even reached the first exercise.'],
+ ['P1','survey',0,'PY','LR','Learner Survey Q3-26','Q7 · Resp #2231','Learner','Q7: What was the biggest obstacle to completing the exercise?','Setup took longer than the actual lesson. Please just give us a browser version that works.'],
+ ['P1','interview',3,'PY','CH','Interview R-14','18:42','Charterholder, portfolio manager','Interviewer: Walk me through your first attempt.','I’m comfortable in Python, but my work laptop is locked down. I can’t install anything, so I couldn’t try it at all.'],
+ ['P1','ticket',9,'PY','LR','Zendesk ZD-47966','Comment 1','Learner','Subject: Module not found in Lab 2','ModuleNotFoundError: No module named ‘riskkit’. The install instructions in the PDF are for an older version.'],
+ ['P1','meeting',12,'PY','IN','Weekly Support Sync','34:10','Support lead','Topic: Ticket trends this month','“Environment” is now our number one tag for the Python sim. It’s about a third of tickets this month.'],
+ ['P1','survey',40,'PY','LR','Learner Survey Q2-26','Q7 · Resp #1804','Learner','Q7: What was the biggest obstacle to completing the exercise?','Couldn’t get the lab environment going on my Mac.'],
+ ['P1','ticket',75,'PY','LR','Zendesk ZD-46231','Comment 1','Learner','Subject: Jupyter kernel dies','Kernel keeps dying on import. Tried reinstalling twice.'],
+ // P7 autosave
+ ['P7','ticket',1,'PW','CH','Zendesk ZD-48190','Comment 1','Charterholder','Subject: Lost my work in the client meeting','Session timed out during the client meeting step and I lost 40 minutes of work. There was no warning at all.'],
+ ['P7','survey',2,'PY','LR','Learner Survey Q3-26','Q9 · Resp #2218','Learner','Q9: What would you change about the experience?','Lost my code when the page refreshed. Autosave would be a basic expectation.'],
+ ['P7','interview',6,'PW','CH','Interview R-17','27:05','Charterholder, wealth adviser','Interviewer: How do you usually fit these in?','I do these in short windows between meetings, so I need to pause and come back. Right now it’s all or nothing.'],
+ ['P7','meeting',14,'PY','IN','Sprint Review','12:48','Engineering lead','Topic: Session handling','Sessions expire after 30 minutes idle, and nothing is persisted until the learner submits.'],
+ ['P7','ticket',21,'PY','LR','Zendesk ZD-47612','Comment 1','Learner','Subject: Progress reset after browser crash','Browser crashed and everything I’d written was gone when I came back.'],
+ // P9 performance / mobile
+ ['P9','survey',0,'PW','CH','Charterholder Pulse Q3-26','Q12 · Resp #2240','Charterholder','Q12: Where did you use the simulation?','I tried it on my iPad on a flight. The layout broke and I couldn’t type in the notes panel.'],
+ ['P9','interview',8,'PY','LR','Interview R-19','09:30','Learner','Interviewer: What happened when you first opened it?','It took like 40 seconds to load the first scenario. I thought it had frozen.'],
+ ['P9','ticket',16,'PW','LR','Zendesk ZD-47730','Comment 2','Learner','Subject: Simulation very slow on school Wi-Fi','The simulation takes forever to load on our campus network and sometimes never does.'],
+ ['P9','meeting',20,'PW','IN','Product Analytics Review','21:15','Product analyst','Topic: Device mix','38% of Private Wealth sessions start on a tablet or phone, and those sessions drop off at twice the rate.'],
+ ['P9','survey',33,'PW','CH','Charterholder Pulse Q2-26','Q12 · Resp #1731','Charterholder','Q12: Where did you use the simulation?','The mobile experience isn’t usable.'],
+ // P11 accessibility (emerging)
+ ['P11','ticket',0,'PY','LR','Zendesk ZD-48224','Comment 1','Learner','Subject: Screen reader skips the code editor','I use a screen reader and it can’t get into the code editor at all. I can’t submit the exercise.'],
+ ['P11','survey',1,'PW','CH','Charterholder Pulse Q3-26','Q9 · Resp #2237','Charterholder','Q9: What would you change about the experience?','I rely on keyboard navigation. Several buttons in the client chat can’t be reached without a mouse.'],
+ ['P11','meeting',1,'PY','IN','Content Team Standup','03:20','Content designer','Topic: New simulation shell','We haven’t scheduled an accessibility audit for the new shell, and two people have already flagged it.'],
+ // P2 feedback
+ ['P2','ticket',0,'PY','LR','Zendesk ZD-48220','Comment 1','Learner','Subject: Autograder says Incorrect with no detail','My code ran and the checker just says “Incorrect”. I don’t know if it’s the logic, the rounding or the data. There’s nothing to go on.'],
+ ['P2','interview',4,'PY','CH','Interview R-15','31:20','Charterholder, risk analyst','Interviewer: What happened when your answer was wrong?','I can read a stack trace, but even I couldn’t tell what the grader expected. A learner would give up.'],
+ ['P2','survey',5,'PY','LR','Learner Survey Q3-26','Q10 · Resp #2190','Learner','Q10: What help would you want while working?','I’d like hints that nudge me, not the full answer, and an explanation after I get it right or wrong.'],
+ ['P2','meeting',11,'PY','IN','Content Team Standup','08:55','Instructor liaison','Topic: Instructor feedback','Instructors keep telling us the autograder is a black box. They can’t coach because they don’t see what learners saw.'],
+ ['P2','survey',18,'PY','LR','Learner Survey Q3-26','Q10 · Resp #2011','Learner','Q10: What help would you want while working?','The feedback is too vague to learn from.'],
+ ['P2','ticket',30,'PY','LR','Zendesk ZD-47301','Comment 1','Learner','Subject: Why was my answer marked wrong?','Marked wrong but my output matches the example. How do I find the difference?'],
+ // P6 debrief
+ ['P6','meeting',0,'PW','IN','Pilot Debrief','41:02','UX researcher','Topic: Pilot participant reactions','In the pilot review, three of five participants asked “so, did I do well?” after the client call. We don’t give them anything.'],
+ ['P6','interview',5,'PW','CH','Interview R-16','36:48','Charterholder, wealth adviser','Interviewer: What happened at the end?','I finished the conversation and the sim just ended. I wanted to know whether my recommendation was actually suitable for that client.'],
+ ['P6','survey',7,'PW','LR','Learner Survey Q3-26','Q10 · Resp #2175','Learner','Q10: What help would you want while working?','Would love a scorecard against a rubric, like what an examiner would mark.'],
+ ['P6','survey',25,'PW','CH','Charterholder Pulse Q2-26','Q10 · Resp #1690','Charterholder','Q10: What help would you want?','No idea how I did.'],
+ ['P6','ticket',28,'PW','LR','Zendesk ZD-47390','Comment 1','Learner','Subject: Where can I see my results?','I finished the Private Wealth case. Where do I see my result or any feedback?'],
+ // P3 toy problems
+ ['P3','interview',6,'PY','CH','Interview R-14','40:15','Charterholder, portfolio manager','Interviewer: How realistic were the exercises?','The exercises are textbook toy data. I’d want to run it on something that looks like a real portfolio, with messy prices and missing values.'],
+ ['P3','survey',3,'PY','LR','Learner Survey Q3-26','Q8 · Resp #2205','Learner','Q8: What would make this more useful for your job?','Show me how analysts actually use Python at work, like rebalancing or attribution.'],
+ ['P3','survey',29,'PY','CH','Charterholder Pulse Q2-26','Q8 · Resp #1702','Charterholder','Q8: What would make this more useful?','Too academic for what I do day to day.'],
+ ['P3','meeting',13,'PY','IN','Employer Advisory Notes','28:30','Program manager','Topic: Employer expectations','Hiring managers say they want candidates who can clean data, not just call a library.'],
+ // P4 scripted clients
+ ['P4','interview',0,'PW','CH','Interview R-21','14:12','Charterholder, private banker','Interviewer: How did the client conversation feel?','The client just answers whatever you ask. Real clients are anxious, they change their mind, they hold things back until they trust you.'],
+ ['P4','interview',7,'PW','CH','Interview R-16','12:30','Charterholder, wealth adviser','Interviewer: Did you notice a pattern in the responses?','After the third question I realised the script is a decision tree. I started gaming it rather than advising.'],
+ ['P4','survey',4,'PW','LR','Learner Survey Q3-26','Q4 · Resp #2201','Learner','Q4: How realistic was the client?','The client felt robotic. I’d like to practise a difficult conversation, like a client who just lost money.'],
+ ['P4','meeting',10,'PW','IN','Pilot Debrief','18:20','UX researcher','Topic: Pilot participant reactions','Participants in the Private Wealth pilot described the client as “scripted” in six of eight sessions.'],
+ ['P4','survey',22,'PW','CH','Charterholder Pulse Q2-26','Q4 · Resp #1655','Charterholder','Q4: How realistic was the client?','The client personas are one-dimensional.'],
+ // P5 jurisdiction
+ ['P5','survey',1,'PW','CH','Charterholder Pulse Q3-26','Q6 · Resp #2226','Charterholder','Q6: Was the case relevant to your market?','Everything is US-centric: 401(k)s, US estate rules. I advise clients in Singapore and the UK.'],
+ ['P5','interview',9,'PW','CH','Interview R-20','22:05','Charterholder, private banker','Interviewer: Did the case fit your clients?','The tax treatment in the case isn’t relevant for my market. I spent the whole time translating in my head.'],
+ ['P5','ticket',17,'PW','LR','Zendesk ZD-47745','Comment 1','Learner','Subject: ISA and 401k terms outside my curriculum region','The case uses retirement account terms that aren’t in the part of the curriculum I studied.'],
+ ['P5','meeting',25,'PW','IN','Stakeholder Sync','15:40','Regional partnerships','Topic: Regional requests','APAC charterholder societies have asked for a jurisdiction option three times this quarter.'],
+ ['P5','survey',50,'PW','CH','Charterholder Pulse Q1-26','Q6 · Resp #902','Charterholder','Q6: Was the case relevant to your market?','More international clients, please.'],
+ // P8 CPD
+ ['P8','ticket',2,'PW','CH','Zendesk ZD-48175','Comment 1','Charterholder','Subject: CPD evidence for simulation','I completed the sim but I can’t find a certificate or any way to log CPD hours. My regulator needs evidence.'],
+ ['P8','interview',5,'PY','CH','Interview R-18','44:10','Charterholder, analyst','Interviewer: Would you do this again?','If it counted toward my CPD I’d do it quarterly. At the moment I can’t justify the time.'],
+ ['P8','survey',15,'PY','CH','Charterholder Pulse Q3-26','Q11 · Resp #2102','Charterholder','Q11: What is missing?','Need a certificate with hours for my CPD log.'],
+ ['P8','ticket',38,'PW','CH','Zendesk ZD-46980','Comment 1','Charterholder','Subject: Request for CPD statement','Can you send a statement of hours for the Private Wealth simulation?'],
+ ['P8','meeting',19,'PW','IN','Roadmap Review','05:50','Product owner','Topic: CPD mapping','CPD hours mapping was approved in principle, but there’s no ticket for it yet.'],
+ // P10 internal analytics
+ ['P10','meeting',1,'PY','IN','Content Team Standup','19:30','Content designer','Topic: Reporting pain points','I can’t tell which exercises people fail most. I’m pulling CSVs from three tools to build one view.'],
+ ['P10','meeting',13,'PW','IN','Instructor Feedback Session','09:05','Instructor liaison','Topic: What instructors ask for','Instructors want a cohort-level view of where learners get stuck, not a spreadsheet per class.'],
+ ['P10','ticket',6,'PY','IN','Internal Helpdesk INT-0912','Comment 1','Product analyst','Subject: Weekly export of completions by cohort','Request: a weekly export of sim completion by cohort. I’m rebuilding it by hand every Monday.'],
+ ['P10','survey',20,'PY','IN','Staff Survey Q3-26','Q5 · Resp #44','Content team member','Q5: Biggest time sink?','Stitching reports together from different tools.']
+];
+const EV = RAW.map((r,i)=>({id:'e'+i,p:r[0],type:r[1],ago:r[2],proj:r[3],pers:r[4],src:r[5],loc:r[6],who:r[7],prompt:r[8],quote:r[9]}));
+
+/* ---------- helpers ---------- */
+const DOY = Math.round((TODAY - new Date(2026,0,1)) / 864e5);
+const RANGES = [
+  ['today','Today',a=>a===0], ['7d','Last 7 days',a=>a<=6], ['30d','Last 30 days',a=>a<=29],
+  ['mtd','Month to date',a=>a<=TODAY.getDate()-1], ['ytd','Year to date',a=>a<=DOY], ['all','All time',()=>true]
+];
+const SORTS = [['priority','Signal strength'],['recent','Most recent']];
+const state = {range:'30d', proj:'all', pers:'all', sort:'priority', open:new Set(['P1','P2','P4','P8']), allq:new Set(), drawer:null, verified:new Set()};
+try{ JSON.parse(localStorage.getItem('ci-verified')||'[]').forEach(x=>state.verified.add(x)); }catch(e){}
+
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dateOf = a=>{const d=new Date(TODAY); d.setDate(d.getDate()-a); return d;};
+const fmt = a=>dateOf(a).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+const rel = a=>a===0?'Today':a===1?'Yesterday':a+' days ago';
+const rangeFn = ()=>RANGES.find(r=>r[0]===state.range)[2];
+const scoped = ()=>EV.filter(e=>(state.proj==='all'||e.proj===state.proj)&&(state.pers==='all'||e.pers===state.pers));
+const inView = ()=>scoped().filter(e=>rangeFn()(e.ago));
+const typeCounts = list=>{const c={interview:0,survey:0,ticket:0,meeting:0}; list.forEach(e=>c[e.type]++); return c;};
+const nTypes = c=>Object.values(c).filter(v=>v>0).length;
+const prob = id=>PROBLEMS.find(p=>p.id===id);
+const chip = (t,n)=>`<span class="tc ${TYPES[t].cls}${n===0?' zero':''}" title="${TYPES[t].label}"><i></i>${TYPES[t].label.replace('Support ticket','Ticket').replace('Internal meeting','Meeting')} <span>${n}</span></span>`;
+const chips = c=>Object.keys(TYPES).map(t=>chip(t,c[t])).join('');
+const strength = (n,t)=> t>=3&&n>=5 ? ['strong','Strong signal'] : (t>=2&&n>=3 ? ['mod','Moderate'] : ['early','Early']);
+const score = (n,t)=> n*(1+0.6*(t-1));
+
+/* ---------- derived ---------- */
+function problemStats(){
+  const view = inView(), all = scoped();
+  return PROBLEMS.map(p=>{
+    const list = view.filter(e=>e.p===p.id);
+    const every = all.filter(e=>e.p===p.id);
+    const c = typeCounts(list), t = nTypes(c);
+    return {p, list:list.sort((a,b)=>a.ago-b.ago), c, t, n:list.length, today:every.filter(e=>e.ago===0).length,
+      first: every.length? Math.max(...every.map(e=>e.ago)) : null, total:every.length, every};
+  }).filter(s=>s.n>0);
+}
+
+/* ---------- render ---------- */
+function renderFilters(){
+  const mk=(el,key,opts)=>{ $(el).innerHTML = opts.map(([v,l])=>`<button type="button" data-f="${key}" data-v="${v}" aria-pressed="${state[key]===v}">${l}</button>`).join(''); };
+  mk('#f-range','range',RANGES.map(r=>[r[0],r[1]]));
+  mk('#f-proj','proj',[['all','All'],['PY','Python simulation'],['PW','Private Wealth simulation']]);
+  mk('#f-pers','pers',[['all','All'],['CH','CFA charterholders'],['LR','CFA learners'],['IN','Internal']]);
+  mk('#f-sort','sort',SORTS);
+}
+
+function quoteHTML(e, showProblem){
+  const v = state.verified.has(e.id);
+  return `<li class="quote">
+    <blockquote>${esc(e.quote)}</blockquote>
+    <div class="qf">
+      ${chip(e.type,'').replace(/ <span><\/span>/,'')}
+      <span class="src">${esc(e.src)} · ${esc(e.loc)}</span>
+      <span>${esc(e.who)}</span><span>${e.ago===0?'<span class="pill new">Today</span>':fmt(e.ago)}</span>
+      ${v?'<span class="ok">✓ Verified</span>':''}
+      <button class="btn" data-act="source" data-id="${e.id}">View source</button>
+    </div></li>`;
+}
+
+function renderStats(){
+  const list = inView(), c = typeCounts(list), ps = problemStats();
+  const strong = ps.filter(s=>strength(s.n,s.t)[0]==='strong').length;
+  const today = scoped().filter(e=>e.ago===0).length;
+  $('#stats').innerHTML = [
+    [list.length,'pieces of feedback in view'],[today,'new today'],[ps.length,'customer problems'],
+    [strong,'strong signals (3+ source types)']
+  ].map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+}
+
+function renderToday(){
+  const all = scoped(), todays = all.filter(e=>e.ago===0), prior = all.filter(e=>e.ago>0);
+  const items = [];
+  const tc = typeCounts(todays);
+  PROBLEMS.forEach(p=>{
+    const every = all.filter(e=>e.p===p.id); if(!every.length) return;
+    const td = every.filter(e=>e.ago===0).length, first = Math.max(...every.map(e=>e.ago));
+    const before = nTypes(typeCounts(every.filter(e=>e.ago>0))), after = nTypes(typeCounts(every));
+    if(first<=2) items.push({o:0,id:p.id,k:'<span class="pill warn">Emerging</span>',h:p.title,s:`First seen ${first===0?'today':first+' days ago'}. ${every.length} mentions across ${after} source types so far.`});
+    else if(td>0 && before<3 && after>=3) items.push({o:1,id:p.id,k:'<span class="pill strong">Triangulated</span>',h:p.title,s:`Today’s feedback adds a ${after}rd source type. Now ${every.length} mentions in total.`.replace('3rd','3rd').replace('4rd','4th')});
+    else if(td>0) items.push({o:2-td/10,id:p.id,k:`<span class="pill new">+${td} today</span>`,h:p.title,s:`${every.length} mentions in total across ${after} source types.`});
+  });
+  items.sort((a,b)=>a.o-b.o);
+  const quotes = todays.slice().sort((a,b)=>(prob(a.p)?1:0)-(prob(b.p)?1:0)).slice(0,3);
+  $('#today').innerHTML = `
+    <div style="grid-column:1/-1;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;align-items:baseline">
+      <h2>Today’s update</h2><small style="color:var(--muted);font-size:12.5px">${todays.length} new items since yesterday · follows the project and persona filters, not the date filter</small></div>
+    <div>
+      <h3>What changed</h3>
+      <div class="mixrow">${chips(tc)}</div>
+      ${items.length?`<ul class="chg">${items.slice(0,5).map(i=>`<li><button type="button" data-act="goto" data-id="${i.id}"><span class="k">${i.k}</span><span class="tx">${esc(i.h)}<small>${esc(i.s)}</small></span></button></li>`).join('')}</ul>`:'<p class="note">No new feedback today for this selection.</p>'}
+    </div>
+    <div>
+      <h3>Latest quotes</h3>
+      ${quotes.length?`<ul class="quotes">${quotes.map(e=>`<li class="quote"><blockquote>${esc(e.quote)}</blockquote><div class="qf"><span class="pill early">${esc(prob(e.p).title.length>44?prob(e.p).title.slice(0,42)+'…':prob(e.p).title)}</span>${chip(e.type,'').replace(/ <span><\/span>/,'')}<span class="src">${esc(e.src)}</span><button class="btn" data-act="source" data-id="${e.id}">View source</button></div></li>`).join('')}</ul>`:'<p class="note">Nothing new today.</p>'}
+    </div>`;
+}
+
+function spark(every){
+  const W=12, bins=Array(W).fill(0);
+  every.forEach(e=>{const w=Math.floor(e.ago/7); if(w<W) bins[W-1-w]++;});
+  const m=Math.max(1,...bins);
+  return `<svg class="spark" width="72" height="22" viewBox="0 0 72 22" role="img" aria-label="Mentions per week, last 12 weeks: ${bins.join(', ')}">${bins.map((v,i)=>{const h=v?Math.max(3,Math.round(v/m*20)):1;return `<rect class="${i===W-1?'cur':''}" x="${i*6}" y="${22-h}" width="5" height="${h}"/>`}).join('')}</svg>`;
+}
+
+function renderThemes(){
+  const ps = problemStats();
+  if(!ps.length){ $('#themes').innerHTML = '<div class="panel empty">No feedback matches these filters. Try a wider date range.</div>'; return; }
+  const rank = s=> state.sort==='priority' ? -score(s.n,s.t) : s.list[0].ago;
+  const themes = THEMES.map(t=>{
+    const items = ps.filter(s=>s.p.theme===t.id).sort((a,b)=>rank(a)-rank(b));
+    const list = items.flatMap(s=>s.list);
+    return {t, items, list, top: items.length? Math.max(...items.map(s=>score(s.n,s.t))):0, recent: items.length? Math.min(...items.map(s=>s.list[0].ago)):0};
+  }).filter(x=>x.items.length).sort((a,b)=> state.sort==='priority'? b.top-a.top : a.recent-b.recent);
+
+  $('#themes').innerHTML = themes.map(({t,items,list})=>{
+    const c = typeCounts(list), tot = list.length;
+    const bar = Object.keys(TYPES).map(k=>c[k]?`<i class="${TYPES[k].cls}" style="width:${c[k]/tot*100}%" title="${TYPES[k].label}: ${c[k]}"></i>`:'').join('');
+    return `<article class="panel" aria-label="${esc(t.name)}">
+      <div class="theme-h">
+        <div class="row"><h2>${esc(t.name)}</h2><small style="color:var(--muted)">${items.length} problem${items.length>1?'s':''} · ${tot} mentions</small></div>
+        <p>${esc(t.desc)}</p><div class="bar" aria-hidden="true">${bar}</div>
+      </div>
+      ${items.map(s=>problemHTML(s)).join('')}
+    </article>`;
+  }).join('');
+}
+
+function problemHTML(s){
+  const {p,list,c,t,n} = s, open = state.open.has(p.id);
+  const [sc,sl] = strength(n,t);
+  const emerging = s.first!==null && s.first<=2;
+  const showAll = state.allq.has(p.id), shown = showAll? list : list.slice(0,3);
+  return `<div class="prob" id="prob-${p.id}">
+    <button type="button" class="prob-head" data-act="toggle" data-id="${p.id}" aria-expanded="${open}">
+      <span class="sig"><b>${n}</b><small>mentions</small></span>
+      <span><span class="ptitle">${esc(p.title)}</span>
+        <span class="ptags"><span class="pill ${sc}">${sl}</span><span class="note">${t} of 4 source types</span>
+          ${emerging?'<span class="pill warn">Emerging</span>':''}${s.today?`<span class="pill new">+${s.today} today</span>`:''}</span></span>
+      <span class="tri">${chips(c)}</span>
+      <span class="chev" aria-hidden="true">▸</span>
+    </button>
+    ${open?`<div class="prob-body">
+      <p class="stmt"><span class="lbl">Problem to solve (synthesized)</span>${esc(p.stmt)}</p>
+      <div><span class="lbl">Mentions per week, last 12 weeks</span>${spark(s.every)}</div>
+      <div><span class="lbl">Features that could address it</span><div class="chips">${p.features.map(f=>`<span class="feat">${esc(FEATURES[f])}</span>`).join('')}</div></div>
+      <div><span class="lbl">Customer evidence (${list.length})</span>
+        <ul class="quotes">${shown.map(e=>quoteHTML(e)).join('')}</ul></div>
+      ${list.length>3?`<button type="button" class="more" data-act="allq" data-id="${p.id}">${showAll?'Show fewer quotes':'Show all '+list.length+' quotes'}</button>`:''}
+    </div>`:''}
+  </div>`;
+}
+
+function renderFeatures(){
+  const ps = problemStats(); const map = {};
+  ps.forEach(s=>s.p.features.forEach(f=>{ (map[f]=map[f]||{ev:new Map(),probs:[]}); s.list.forEach(e=>map[f].ev.set(e.id,e)); map[f].probs.push(s); }));
+  const rows = Object.entries(map).map(([f,m])=>{ const list=[...m.ev.values()]; return {f,n:list.length,t:nTypes(typeCounts(list)),probs:m.probs}; }).sort((a,b)=>b.n-a.n).slice(0,9);
+  const max = Math.max(1,...rows.map(r=>r.n));
+  $('#features').innerHTML = rows.length? rows.map(r=>`<li><button type="button" data-act="goto" data-id="${r.probs[0].p.id}">
+    <span class="r1"><span>${esc(FEATURES[r.f])}</span><span>${r.n}</span></span>
+    <span class="meter"><i style="width:${r.n/max*100}%"></i></span>
+    <small>${r.t} source types · addresses ${r.probs.length} problem${r.probs.length>1?'s':''}</small></button></li>`).join('') : '<li class="empty">No features linked to this selection.</li>';
+}
+
+function renderDrawer(){
+  const host = $('#overlay');
+  const e = EV.find(x=>x.id===state.drawer);
+  if(!e){ host.innerHTML=''; return; }
+  const v = state.verified.has(e.id), p = prob(e.p);
+  const kind = {interview:'Open recording at '+e.loc, survey:'Open response in survey tool', ticket:'Open ticket in Zendesk', meeting:'Open recording at '+e.loc}[e.type];
+  host.innerHTML = `<div class="scrim" data-act="close"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-label="Source detail">
+    <div class="dh"><div>${chip(e.type,'').replace(/ <span><\/span>/,'')}<h2>${esc(e.src)}</h2></div>
+      <button type="button" class="btn" data-act="close" id="dclose">Close</button></div>
+    <div class="db">
+      <div class="ctx"><div class="p">${esc(e.prompt)}</div>
+        <div><mark>${esc(e.quote)}</mark></div>
+        <div class="note">Excerpt shown exactly as captured. Location: <span class="mono">${esc(e.loc)}</span></div></div>
+      <dl class="dl">
+        <dt>Source</dt><dd>${TYPES[e.type].label}</dd>
+        <dt>Speaker</dt><dd>${esc(e.who)}</dd>
+        <dt>Date</dt><dd>${fmt(e.ago)} (${rel(e.ago).toLowerCase()})</dd>
+        <dt>Persona</dt><dd>${PERS[e.pers]}</dd>
+        <dt>Project</dt><dd>${PROJ[e.proj]}</dd>
+        <dt>Linked problem</dt><dd>${esc(p.title)}</dd>
+      </dl>
+      <p class="note">In a production version this opens the original record at the exact timestamp, row or comment. Here it is a placeholder.</p>
+    </div>
+    <div class="df">
+      <button type="button" class="btn pri" data-act="original" data-id="${e.id}">${kind} ↗</button>
+      <button type="button" class="btn" data-act="copy" data-id="${e.id}">Copy citation</button>
+      <button type="button" class="btn" data-act="verify" data-id="${e.id}">${v?'✓ Verified (undo)':'Mark as verified'}</button>
+    </div>
+  </aside>`;
+  const c = $('#dclose'); if(c) c.focus();
+}
+
+function render(){ renderFilters(); renderStats(); renderToday(); renderThemes(); renderFeatures(); renderDrawer(); }
+
+/* ---------- events ---------- */
+function toast(msg){
+  const h=$('#toast-host'); h.innerHTML=`<div class="toast" role="status">${esc(msg)}</div>`;
+  setTimeout(()=>{h.innerHTML='';},2200);
+}
+document.addEventListener('click',ev=>{
+  const f = ev.target.closest('[data-f]');
+  if(f){ state[f.dataset.f]=f.dataset.v; render(); return; }
+  const a = ev.target.closest('[data-act]'); if(!a) return;
+  const id = a.dataset.id, act = a.dataset.act;
+  if(act==='toggle'){ state.open.has(id)?state.open.delete(id):state.open.add(id); renderThemes(); }
+  else if(act==='allq'){ state.allq.has(id)?state.allq.delete(id):state.allq.add(id); renderThemes(); }
+  else if(act==='goto'){ state.open.add(id); renderThemes(); const el=document.getElementById('prob-'+id); if(el) el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  else if(act==='source'){ state.drawer=id; renderDrawer(); }
+  else if(act==='close'){ state.drawer=null; renderDrawer(); }
+  else if(act==='original'){ toast('Prototype: would open the original record'); }
+  else if(act==='verify'){
+    state.verified.has(id)?state.verified.delete(id):state.verified.add(id);
+    try{localStorage.setItem('ci-verified',JSON.stringify([...state.verified]));}catch(e){}
+    renderDrawer(); renderThemes(); renderToday();
+  }
+  else if(act==='copy'){
+    const e=EV.find(x=>x.id===id);
+    const txt = `"${e.quote}" — ${e.who}, ${e.src} (${e.loc}), ${fmt(e.ago)}`;
+    const done=()=>toast('Citation copied');
+    try{ navigator.clipboard.writeText(txt).then(done,()=>toast('Copy blocked. Select the quote text instead.')); }catch(x){ toast('Copy blocked. Select the quote text instead.'); }
+  }
+});
+document.addEventListener('keydown',ev=>{ if(ev.key==='Escape'&&state.drawer){ state.drawer=null; renderDrawer(); } });
+
+$('#dateline').textContent = TODAY.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) + ' · daily digest';
+render();
+</script>
+
+</body></html>
